@@ -1,57 +1,89 @@
-/* Get references to DOM elements */
 const categoryFilter = document.getElementById("categoryFilter");
 const productsContainer = document.getElementById("productsContainer");
-const chatForm = document.getElementById("chatForm");
+const selectedProductsList = document.getElementById("selectedProductsList");
 const chatWindow = document.getElementById("chatWindow");
 
-/* Show initial placeholder until user selects a category */
-productsContainer.innerHTML = `
-  <div class="placeholder-message">
-    Select a category to view products
-  </div>
-`;
+let allProducts = [];
+let selectedProducts = [];
 
-/* Load product data from JSON file */
+// LOAD DATA
 async function loadProducts() {
-  const response = await fetch("products.json");
-  const data = await response.json();
+  const res = await fetch("products.json");
+  const data = await res.json();
   return data.products;
 }
 
-/* Create HTML for displaying product cards */
+// INIT
+loadProducts().then((products) => {
+  allProducts = products;
+
+  const categories = [...new Set(products.map((p) => p.category))];
+
+  categories.forEach((cat) => {
+    const option = document.createElement("option");
+    option.value = cat;
+    option.textContent = cat;
+    categoryFilter.appendChild(option);
+  });
+});
+
+// FILTER
+categoryFilter.addEventListener("change", () => {
+  const filtered = allProducts.filter(
+    (p) => p.category === categoryFilter.value,
+  );
+  displayProducts(filtered);
+});
+
+// DISPLAY PRODUCTS
 function displayProducts(products) {
   productsContainer.innerHTML = products
     .map(
-      (product) => `
-    <div class="product-card">
-      <img src="${product.image}" alt="${product.name}">
-      <div class="product-info">
-        <h3>${product.name}</h3>
-        <p>${product.brand}</p>
-      </div>
+      (p) => `
+    <div class="product-card" onclick="selectProduct(${p.id})">
+      <img src="${p.image}" />
+      <p>${p.name}</p>
     </div>
-  `
+  `,
     )
     .join("");
 }
 
-/* Filter and display products when category changes */
-categoryFilter.addEventListener("change", async (e) => {
-  const products = await loadProducts();
-  const selectedCategory = e.target.value;
+// SELECT PRODUCT
+function selectProduct(id) {
+  const product = allProducts.find((p) => p.id === id);
 
-  /* filter() creates a new array containing only products 
-     where the category matches what the user selected */
-  const filteredProducts = products.filter(
-    (product) => product.category === selectedCategory
-  );
+  if (!selectedProducts.some((p) => p.id === id)) {
+    selectedProducts.push(product);
+  }
 
-  displayProducts(filteredProducts);
+  selectedProductsList.innerHTML = selectedProducts
+    .map((p) => `<p>${p.name}</p>`)
+    .join("");
+}
+
+// GENERATE ROUTINE
+document.getElementById("generateRoutine").addEventListener("click", () => {
+  if (selectedProducts.length === 0) {
+    alert("Select products first");
+    return;
+  }
+
+  const routine = selectedProducts
+    .map((p, i) => `${i + 1}. Use ${p.name}`)
+    .join("<br>");
+
+  chatWindow.innerHTML = `<strong>Your Routine:</strong><br>${routine}`;
 });
 
-/* Chat form submission handler - placeholder for OpenAI integration */
-chatForm.addEventListener("submit", (e) => {
+// CHAT
+document.getElementById("chatForm").addEventListener("submit", (e) => {
   e.preventDefault();
 
-  chatWindow.innerHTML = "Connect to the OpenAI API for a response!";
+  const input = document.getElementById("userInput").value;
+
+  chatWindow.innerHTML += `<p><strong>You:</strong> ${input}</p>`;
+  chatWindow.innerHTML += `<p><strong>Suggestion:</strong> Stay consistent with your routine.</p>`;
+
+  e.target.reset();
 });
